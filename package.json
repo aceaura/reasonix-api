@@ -1,0 +1,57 @@
+{
+  "name": "reasonix-api",
+  "version": "0.1.0",
+  "description": "OpenAI-compatible API server wrapping Reasonix for DeepSeek prefix-cache-optimized conversations",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=22" },
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": { "reasonix-api": "./dist/index.js" },
+  "scripts": {
+    "dev": "tsx scripts/dev.ts",
+    "start": "node dist/index.js",
+    "build": "tsup",
+    "build:dashboard": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check src tests",
+    "lint:fix": "biome check --write src tests",
+    "test": "vitest run tests/unit tests/contract",
+    "test:unit": "vitest run tests/unit",
+    "test:contract": "vitest run tests/contract",
+    "test:live": "vitest run tests/live",
+    "test:e2e": "vitest run tests/e2e",
+    "test:all": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run tests/unit tests/contract --coverage",
+    "verify": "npm run build && npm run lint && npm run typecheck && npm run test"
+  },
+  "dependencies": {
+    "reasonix": "^0.53.2",
+    "hono": "^4.7.0",
+    "@hono/node-server": "^1.13.0",
+    "@hono/zod-validator": "^0.4.0",
+    "zod": "^3.24.0",
+    "yaml": "^2.6.0",
+    "dotenv": "^16.4.5",
+    "pino": "^9.6.0",
+    "uuid": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/uuid": "^10.0.0",
+    "typescript": "^5.6.3",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "vitest": "^2.1.5",
+    "@vitest/coverage-v8": "^2.1.5",
+    "@biomejs/biome": "^1.9.4",
+    "eslint": "^9.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0"
+  }
+}

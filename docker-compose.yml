@@ -1,0 +1,26 @@
+version: "3.8"
+
+services:
+  reasonix-api:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - API_KEY=${API_KEY:-}
+      - PORT=8080
+      - HOST=0.0.0.0
+      - SESSION_TTL_MINUTES=${SESSION_TTL_MINUTES:-60}
+      - MAX_CONCURRENT_SESSIONS=${MAX_CONCURRENT_SESSIONS:-100}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-deepseek-v4-flash}
+      - MAX_TOKENS=${MAX_TOKENS:-4096}
+      - BUDGET_USD=${BUDGET_USD:-10}
+      - REASONING_EFFORT=${REASONING_EFFORT:-high}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
