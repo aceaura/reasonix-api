@@ -102,7 +102,7 @@ export const ChatCompletionRequestSchema = z.object({
 		})
 		.optional(),
 	user: z.string().optional(),
-	reasoning_effort: z.enum(["low", "medium", "high", "max"]).optional(),
+	reasoning_effort: z.string().optional(),
 	frequency_penalty: z.number().min(-2).max(2).optional(),
 	presence_penalty: z.number().min(-2).max(2).optional(),
 });

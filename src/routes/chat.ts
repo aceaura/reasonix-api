@@ -69,7 +69,9 @@ const chatRequestSchema = z.object({
 	response_format: z
 		.object({ type: z.enum(["text", "json_object"]) })
 		.optional(),
-	reasoning_effort: z.enum(["low", "medium", "high", "max"]).optional(),
+	// Pass-through: accept any value (e.g. OpenCode "xhigh", OpenAI "minimal").
+	// Forwarded verbatim to DeepSeek, which validates it — we don't gate it.
+	reasoning_effort: z.string().optional(),
 	session_id: z.string().optional(),
 	stream_options: z
 		.object({ include_usage: z.boolean().optional() })
@@ -189,6 +191,14 @@ chatRouter.post(
 			if (!cached) store.setCachedResponse(cacheKey, result);
 
 			store.recordUsage(convKey, result.usage);
+			logDeepSeekCall({
+				model: mappedModel,
+				req: engineReq,
+				usage: result.usage,
+				stream: false,
+				localCache: Boolean(cached),
+				convKey,
+			});
 			const response = buildChatCompletion(result, {
 				id: requestId,
 				model: mappedModel,
@@ -257,6 +267,14 @@ function streamResponse(
 				}
 				controller.enqueue(encoder.encode(SSE_DONE));
 				if (captured) store.recordUsage(opts.convKey, captured);
+				logDeepSeekCall({
+					model: opts.model,
+					req: engineReq,
+					usage: captured,
+					stream: true,
+					localCache: false,
+					convKey: opts.convKey,
+				});
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : "Unknown error";
 				controller.enqueue(
@@ -291,6 +309,37 @@ function streamResponse(
 // ---------------------------------------------------------------------------
 // Misc
 // ---------------------------------------------------------------------------
+
+/** One line per upstream DeepSeek call: native params + cache-hit accounting. */
+function logDeepSeekCall(args: {
+	model: string;
+	req: EngineChatRequest;
+	usage: EngineUsage | undefined;
+	stream: boolean;
+	localCache: boolean;
+	convKey: string;
+}): void {
+	const { model, req, usage, stream, localCache, convKey } = args;
+	const extra = req.extraBody ?? {};
+	const fmt = (v: unknown): string =>
+		v === undefined
+			? "-"
+			: typeof v === "object"
+				? JSON.stringify(v)
+				: String(v);
+	const u = usage
+		? `prompt=${usage.promptTokens} completion=${usage.completionTokens} ` +
+			`cached_hit=${usage.cachedHitTokens} cached_miss=${usage.cachedMissTokens} ` +
+			`hit_ratio=${usage.promptTokens > 0 ? (usage.cachedHitTokens / usage.promptTokens).toFixed(3) : "0"}`
+		: "usage=n/a";
+	console.log(
+		`[${new Date().toISOString()}] deepseek ` +
+			`model=${model} effort=${fmt(req.reasoningEffort)} stream=${stream} ` +
+			`tools=${req.tools?.length ?? 0} max_tokens=${fmt(req.maxTokens)} temp=${fmt(req.temperature)} ` +
+			`seed=${fmt(extra.seed)} stop=${fmt(extra.stop)} top_p=${fmt(extra.top_p)} ` +
+			`local_cache=${localCache ? "HIT" : "miss"} | ${u} session=${convKey}`,
+	);
+}
 
 function emitEnd(
 	requestId: string,

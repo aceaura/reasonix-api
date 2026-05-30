@@ -1,18 +1,20 @@
 import { serve } from "@hono/node-server";
+import "dotenv/config";
 import { app } from "../src/app.js";
+import { getConfig } from "../src/config.js";
+import { printStartupBanner } from "../src/lib/banner.js";
 
-const port = Number(process.env.PORT ?? 8080);
-const host = process.env.HOST ?? "0.0.0.0";
+const config = getConfig();
+const port = config.port;
+const host = config.host;
 
-console.log(`Starting Reasonix API server on ${host}:${port}...`);
+console.log(`Reasonix API v0.1.0 (dev) starting on ${host}:${port}...`);
 
-serve({
-  fetch: app.fetch,
-  port,
-  hostname: host,
-});
-
-console.log(`Reasonix API running at http://${host}:${port}`);
-console.log(`  Health:  GET http://${host}:${port}/health`);
-console.log(`  Chat:   POST http://${host}:${port}/v1/chat/completions`);
-console.log(`  Models: GET  http://${host}:${port}/v1/models`);
+serve(
+	{
+		fetch: app.fetch,
+		port,
+		hostname: host,
+	},
+	() => printStartupBanner({ host, port, apiKey: config.apiKey }),
+);

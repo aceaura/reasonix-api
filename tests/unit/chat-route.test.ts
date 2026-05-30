@@ -100,6 +100,24 @@ describe("POST /v1/chat/completions (non-streaming)", () => {
 		expect(res.headers.get("x-cache")).toBe("HIT");
 	});
 
+	it("forwards reasoning_effort verbatim, including non-standard values (no enum gate)", async () => {
+		const res = await post({
+			model: "deepseek-reasoner",
+			messages: [{ role: "user", content: "hi" }],
+			reasoning_effort: "xhigh",
+		});
+		expect(res.status).toBe(200); // not rejected by a strict enum
+		expect(lastRequest?.reasoningEffort).toBe("xhigh");
+	});
+
+	it("applies NO default reasoning_effort when the client omits it", async () => {
+		await post({
+			model: "deepseek-reasoner",
+			messages: [{ role: "user", content: "hi" }],
+		});
+		expect(lastRequest?.reasoningEffort).toBeUndefined();
+	});
+
 	it("passes the full message history to the engine (not just the last user message)", async () => {
 		await post({
 			model: "gpt-4o",

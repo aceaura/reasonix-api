@@ -11,7 +11,10 @@
  * (`tests/contract`) pins the reasonix surface these adapters rely on.
  */
 
-export type ReasoningEffort = "low" | "medium" | "high" | "max";
+// Known DeepSeek/OpenAI values are listed for editor hints, but ANY string is
+// accepted and passed through verbatim — the upstream API validates it, not us.
+// (OpenCode variants can send values like "xhigh"; OpenAI also uses "minimal".)
+export type ReasoningEffort = "low" | "medium" | "high" | "max" | (string & {});
 
 /** Normalized chat message (OpenAI-shaped, provider-agnostic). */
 export interface EngineMessage {

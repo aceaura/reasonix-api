@@ -177,7 +177,11 @@ export class ReasonixAdapter implements ReasonixEngine {
 		if (req.temperature !== undefined) opts.temperature = req.temperature;
 		if (req.maxTokens !== undefined) opts.maxTokens = req.maxTokens;
 		if (req.responseFormat) opts.responseFormat = req.responseFormat;
-		if (req.reasoningEffort) opts.reasoningEffort = req.reasoningEffort;
+		// Pass through verbatim — reasonix sets payload.reasoning_effort = this value
+		// unchanged, so DeepSeek (not us) decides what's valid.
+		if (req.reasoningEffort)
+			opts.reasoningEffort =
+				req.reasoningEffort as ChatRequestOptions["reasoningEffort"];
 		if (req.signal) opts.signal = req.signal;
 		return opts;
 	}
