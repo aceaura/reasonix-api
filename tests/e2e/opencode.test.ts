@@ -30,7 +30,11 @@ async function chat(body: unknown, headers: Record<string, string> = {}) {
 	const res = await app.fetch(
 		new Request("http://local/v1/chat/completions", {
 			method: "POST",
-			headers: { "Content-Type": "application/json", ...headers },
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+				...headers,
+			},
 			body: JSON.stringify(body),
 		}),
 	);

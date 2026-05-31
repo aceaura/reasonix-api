@@ -1,23 +1,24 @@
 import type { MiddlewareHandler } from "hono";
 import { getConfig } from "../config.js";
 
-/** Authentication middleware - validates API key from Authorization/x-api-key headers */
+/**
+ * Authentication middleware — validates the API key on EVERY request
+ * (chat, models, embeddings, health, admin). The only exception is CORS
+ * preflight (OPTIONS), which by spec carries no Authorization header.
+ *
+ * The expected key is `config.apiKey`, which defaults to the DeepSeek key
+ * (see config.ts) — so clients authenticate to this proxy with the DeepSeek key.
+ */
 export const authMiddleware: MiddlewareHandler = async (c, next) => {
-	// Skip auth for health endpoints
-	if (c.req.path.startsWith("/health")) {
+	// CORS preflight never carries credentials — let it through.
+	if (c.req.method === "OPTIONS") {
 		return next();
 	}
 
 	const config = getConfig();
 
-	// If no API_KEY configured, allow all requests (no auth)
-	if (!config.apiKey) {
-		return next();
-	}
-
 	const authHeader = c.req.header("Authorization");
 	const apiKeyHeader = c.req.header("x-api-key");
-
 	const token =
 		authHeader?.replace(/^Bearer\s+/i, "").trim() ?? apiKeyHeader?.trim();
 

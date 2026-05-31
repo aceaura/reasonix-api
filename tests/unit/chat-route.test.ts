@@ -4,6 +4,7 @@
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { app } from "../../src/app.js";
+import { getConfig } from "../../src/config.js";
 import { setEngine } from "../../src/reasonix/adapter.js";
 import type {
 	EngineChatRequest,
@@ -53,7 +54,11 @@ function post(body: unknown, headers: Record<string, string> = {}) {
 	return app.fetch(
 		new Request("http://local/v1/chat/completions", {
 			method: "POST",
-			headers: { "Content-Type": "application/json", ...headers },
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${getConfig().apiKey}`,
+				...headers,
+			},
 			body: JSON.stringify(body),
 		}),
 	);
@@ -191,6 +196,30 @@ describe("POST /v1/chat/completions (non-streaming)", () => {
 	it("rejects a request missing model with 400", async () => {
 		const res = await post({ messages: [{ role: "user", content: "hi" }] });
 		expect(res.status).toBe(400);
+	});
+
+	it("rejects a request with no API key (401)", async () => {
+		const res = await app.fetch(
+			new Request("http://local/v1/chat/completions", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					model: "gpt-4o",
+					messages: [{ role: "user", content: "hi" }],
+				}),
+			}),
+		);
+		expect(res.status).toBe(401);
+	});
+
+	it("rejects a request with a wrong API key (401)", async () => {
+		const res = await post(
+			{ model: "gpt-4o", messages: [{ role: "user", content: "hi" }] },
+			{
+				Authorization: "Bearer wrong-key",
+			},
+		);
+		expect(res.status).toBe(401);
 	});
 });
 

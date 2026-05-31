@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { app } from "../../src/app.js";
+import { getConfig } from "../../src/config.js";
 import {
 	ConversationStore,
 	getConversationStore,
 } from "../../src/lib/conversation.js";
 import type { EngineUsage } from "../../src/reasonix/engine.js";
+
+const authHeaders = () => ({ Authorization: `Bearer ${getConfig().apiKey}` });
 
 const usage = (o: Partial<EngineUsage> = {}): EngineUsage => ({
 	promptTokens: 100,
@@ -60,7 +63,9 @@ describe("admin routes", () => {
 			"conv-x",
 			usage({ promptTokens: 200, cachedHitTokens: 150 }),
 		);
-		const res = await app.fetch(new Request("http://local/admin/cache/stats"));
+		const res = await app.fetch(
+			new Request("http://local/admin/cache/stats", { headers: authHeaders() }),
+		);
 		expect(res.status).toBe(200);
 		const json = (await res.json()) as Json;
 		expect(json.object).toBe("cache.stats");
@@ -73,12 +78,26 @@ describe("admin routes", () => {
 	it("POST /admin/cache/flush clears local state", async () => {
 		getConversationStore().recordUsage("conv-y", usage());
 		const res = await app.fetch(
-			new Request("http://local/admin/cache/flush", { method: "POST" }),
+			new Request("http://local/admin/cache/flush", {
+				method: "POST",
+				headers: authHeaders(),
+			}),
 		);
 		expect(res.status).toBe(200);
 		const json = (await res.json()) as Json;
 		expect(json.object).toBe("cache.flush");
 		expect(json.cleared.conversations).toBeGreaterThanOrEqual(1);
 		expect(getConversationStore().size()).toBe(0);
+	});
+
+	it("requires the API key (401 without it)", async () => {
+		const stats = await app.fetch(
+			new Request("http://local/admin/cache/stats"),
+		);
+		expect(stats.status).toBe(401);
+		const flush = await app.fetch(
+			new Request("http://local/admin/cache/flush", { method: "POST" }),
+		);
+		expect(flush.status).toBe(401);
 	});
 });

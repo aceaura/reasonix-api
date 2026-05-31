@@ -35,7 +35,10 @@ export function loadConfig(overrides?: Partial<EnvConfig>): ServerConfig {
 	const serverConfig: ServerConfig = {
 		port: env.PORT,
 		host: env.HOST,
-		apiKey: env.API_KEY,
+		// Client auth key. If API_KEY is not set, fall back to the DeepSeek key —
+		// i.e. clients authenticate to this proxy with the DeepSeek key itself.
+		// Auth is therefore always on (DEEPSEEK_API_KEY is required).
+		apiKey: env.API_KEY.trim() || env.DEEPSEEK_API_KEY,
 		deepseekApiKey: env.DEEPSEEK_API_KEY,
 		deepseekBaseUrl: env.DEEPSEEK_BASE_URL,
 		sessionTtlMinutes: env.SESSION_TTL_MINUTES,
