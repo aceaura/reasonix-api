@@ -100,3 +100,80 @@ describe("reasoning_effort reaches the DeepSeek request body", () => {
 		expect(captured?.body.stop).toEqual(["END"]);
 	});
 });
+
+// ---------------------------------------------------------------------------
+// CONTENT FIDELITY — proves the proxy forwards message content to DeepSeek
+// byte-for-byte. If this passes, the proxy CANNOT be the cause of an
+// "edit: could not find oldString" failure (which only happens if whitespace /
+// indentation / line endings get altered in transit).
+// ---------------------------------------------------------------------------
+
+describe("message content reaches DeepSeek byte-for-byte (fidelity)", () => {
+	const adapter = new ReasonixAdapter({
+		apiKey: "sk-test",
+		baseUrl: "https://api.deepseek.com",
+	});
+
+	// biome-ignore lint/suspicious/noExplicitAny: reading dynamic JSON body
+	const sentMessages = () => captured?.body.messages as any[];
+
+	it("preserves tabs, mixed indentation, CRLF, trailing whitespace and unicode", async () => {
+		const tricky = [
+			"function foo() {",
+			"\t  if (x) {", // tab + spaces
+			"        return 1;\r", // CRLF (the \n is added by join)
+			"    }",
+			"}",
+			"\t// trailing tab\t",
+			"    non-breaking space +   line sep + emoji 🚀",
+			"",
+		].join("\n");
+
+		await adapter.chat({
+			model: "deepseek-chat",
+			messages: [{ role: "user", content: tricky }],
+		});
+
+		// Exact byte equality after the real JSON.stringify → JSON.parse round-trip.
+		expect(sentMessages()[0]?.content).toBe(tricky);
+		expect(sentMessages()[0]?.content?.length).toBe(tricky.length);
+	});
+
+	it("preserves a multi-message history verbatim and in order", async () => {
+		const fileBlock = "const a = 1;\n\tconst b = 2;\n"; // tool result carrying file bytes
+		const messages = [
+			{
+				role: "system" as const,
+				content: "You are a code editor.\n  Rules:\n\t- be exact",
+			},
+			{ role: "user" as const, content: "edit the file" },
+			{
+				role: "assistant" as const,
+				content: null,
+				tool_calls: [
+					{
+						id: "call_1",
+						type: "function" as const,
+						function: { name: "read", arguments: '{"path":"a.ts"}' },
+					},
+				],
+			},
+			{ role: "tool" as const, tool_call_id: "call_1", content: fileBlock },
+			{ role: "user" as const, content: "now change b to 3" },
+		];
+
+		await adapter.chat({ model: "deepseek-chat", messages });
+
+		const sent = sentMessages();
+		expect(sent.map((m) => m.role)).toEqual([
+			"system",
+			"user",
+			"assistant",
+			"tool",
+			"user",
+		]);
+		expect(sent[0]?.content).toBe(messages[0]?.content);
+		expect(sent[3]?.content).toBe(fileBlock); // tool result file bytes unchanged
+		expect(sent[2]?.tool_calls[0].function.arguments).toBe('{"path":"a.ts"}');
+	});
+});
