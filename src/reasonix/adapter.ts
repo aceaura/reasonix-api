@@ -15,6 +15,7 @@ import {
 	type StreamChunk,
 	type ToolSpec,
 	type Usage,
+	costUsd,
 } from "reasonix";
 
 /**
@@ -24,6 +25,7 @@ import {
 type ChatRequestOptions = Parameters<DeepSeekClient["chat"]>[0];
 import {
 	EMPTY_USAGE,
+	type EngineBalance,
 	type EngineChatRequest,
 	type EngineMessage,
 	type EngineResult,
@@ -43,8 +45,23 @@ export interface AdapterOptions {
 
 const CHAT_PATH = "/chat/completions";
 
-/** Map our normalized usage from reasonix's Usage instance. */
-export function mapUsage(u: Usage | undefined | null): EngineUsage {
+/** reasonix cost lookup, guarded for unknown models. */
+function safeCostUsd(model: string, u: Usage): number {
+	try {
+		return costUsd(model, u) ?? 0;
+	} catch {
+		return 0;
+	}
+}
+
+/**
+ * Map our normalized usage from reasonix's Usage instance. When `model` is
+ * given, per-call cost (USD) is computed via reasonix's pricing.
+ */
+export function mapUsage(
+	u: Usage | undefined | null,
+	model?: string,
+): EngineUsage {
 	if (!u) return { ...EMPTY_USAGE };
 	return {
 		promptTokens: u.promptTokens ?? 0,
@@ -52,6 +69,7 @@ export function mapUsage(u: Usage | undefined | null): EngineUsage {
 		totalTokens: u.totalTokens ?? 0,
 		cachedHitTokens: u.promptCacheHitTokens ?? 0,
 		cachedMissTokens: u.promptCacheMissTokens ?? 0,
+		costUsd: model ? safeCostUsd(model, u) : 0,
 	};
 }
 
@@ -195,9 +213,27 @@ export class ReasonixAdapter implements ReasonixEngine {
 			content: res.content ?? "",
 			reasoning: res.reasoningContent ?? null,
 			toolCalls,
-			usage: mapUsage(res.usage),
+			usage: mapUsage(res.usage, req.model),
 			finishReason: mapFinishReason(rawFinish, toolCalls.length > 0),
 		};
+	}
+
+	async getBalance(): Promise<EngineBalance | null> {
+		try {
+			const bal = await this.client().getBalance();
+			const infos = bal?.balance_infos;
+			if (!infos || infos.length === 0) return null;
+			// Prefer CNY; fall back to the first entry.
+			const pick =
+				infos.find((b) => b.currency?.toUpperCase() === "CNY") ?? infos[0];
+			if (!pick) return null;
+			return {
+				currency: pick.currency,
+				total: Number.parseFloat(pick.total_balance) || 0,
+			};
+		} catch {
+			return null;
+		}
 	}
 
 	async *stream(req: EngineChatRequest): AsyncIterable<EngineStreamChunk> {
@@ -217,7 +253,7 @@ export class ReasonixAdapter implements ReasonixEngine {
 					argumentsDelta: c.toolCallDelta.argumentsDelta,
 				};
 			}
-			if (c.usage) out.usage = mapUsage(c.usage);
+			if (c.usage) out.usage = mapUsage(c.usage, req.model);
 			if (c.finishReason !== undefined && c.finishReason !== null) {
 				out.finishReason = mapFinishReason(c.finishReason, sawToolCall);
 			}
@@ -267,4 +303,27 @@ export function getEngine(): ReasonixEngine {
 /** Test seam: inject a mock engine. */
 export function setEngine(e: ReasonixEngine): void {
 	engine = e;
+}
+
+// ---------------------------------------------------------------------------
+// Balance cache — getBalance() is a separate HTTP call, so we throttle it and
+// serve a cached value to the per-request log (refreshed in the background).
+// ---------------------------------------------------------------------------
+
+let cachedBalance: EngineBalance | null = null;
+let lastBalanceAt = 0;
+
+export function getCachedBalance(): EngineBalance | null {
+	return cachedBalance;
+}
+
+/** Refresh the cached balance at most once per `minIntervalMs` (fire-and-forget safe). */
+export async function refreshBalance(minIntervalMs = 30_000): Promise<void> {
+	if (Date.now() - lastBalanceAt < minIntervalMs) return;
+	lastBalanceAt = Date.now();
+	try {
+		cachedBalance = await getEngine().getBalance();
+	} catch {
+		// Keep the previous value on failure.
+	}
 }

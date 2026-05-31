@@ -63,7 +63,13 @@ describe("reasonix Usage shape (cache accounting source of truth)", () => {
 			totalTokens: 12,
 			cachedHitTokens: 7,
 			cachedMissTokens: 3,
+			costUsd: 0,
 		});
+	});
+
+	it("reasonix costUsd() prices a known model (> 0)", () => {
+		const u = new Usage(10_000, 1_000, 11_000, 0, 10_000);
+		expect(mapUsage(u, "deepseek-chat").costUsd).toBeGreaterThan(0);
 	});
 
 	it("Usage.fromApi reads DeepSeek raw usage field names", () => {

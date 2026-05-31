@@ -6,7 +6,7 @@ import { configureConversations } from "./lib/conversation.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { loggingMiddleware } from "./middleware/logging.js";
-import { initEngine } from "./reasonix/adapter.js";
+import { initEngine, refreshBalance } from "./reasonix/adapter.js";
 import { adminRouter } from "./routes/admin.js";
 import { chatRouter } from "./routes/chat.js";
 import { embeddingsRouter } from "./routes/embeddings.js";
@@ -24,6 +24,9 @@ initEngine({
 	apiKey: config.deepseekApiKey,
 	baseUrl: config.deepseekBaseUrl,
 });
+
+// Warm the account-balance cache so the first request can log it.
+void refreshBalance();
 
 // Conversation tracking (stable session keys + cache accounting)
 configureConversations({

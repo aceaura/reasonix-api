@@ -15,6 +15,7 @@ const usage = (o: Partial<EngineUsage> = {}): EngineUsage => ({
 	totalTokens: 110,
 	cachedHitTokens: 0,
 	cachedMissTokens: 100,
+	costUsd: 0,
 	...o,
 });
 

@@ -23,6 +23,8 @@ const envSchema = z.object({
 		.string()
 		.default("false")
 		.transform((v) => v === "true" || v === "1"),
+	// USD→CNY rate for displaying reasonix's (USD) per-call cost estimate in RMB.
+	USD_TO_CNY: z.coerce.number().default(7.2),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
@@ -55,6 +57,7 @@ export function loadConfig(overrides?: Partial<EnvConfig>): ServerConfig {
 		corsOrigins: env.CORS_ORIGINS,
 		reasoningEffort: env.REASONING_EFFORT,
 		responseCacheEnabled: env.ENABLE_RESPONSE_CACHE,
+		usdToCny: env.USD_TO_CNY,
 	};
 
 	config = serverConfig;

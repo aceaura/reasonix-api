@@ -34,6 +34,7 @@ function mockEngine(
 					totalTokens: 105,
 					cachedHitTokens: 0,
 					cachedMissTokens: 100,
+					costUsd: 0,
 				},
 				finishReason: "stop",
 				...opts.result,
@@ -46,6 +47,9 @@ function mockEngine(
 				{ finishReason: "stop" as const },
 			];
 			for (const c of chunks) yield c;
+		},
+		async getBalance() {
+			return null;
 		},
 	};
 }
@@ -94,6 +98,7 @@ describe("POST /v1/chat/completions (non-streaming)", () => {
 						totalTokens: 105,
 						cachedHitTokens: 90,
 						cachedMissTokens: 10,
+						costUsd: 0,
 					},
 				},
 			}),

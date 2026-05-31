@@ -359,6 +359,7 @@ export interface ServerConfig {
 	corsOrigins: string;
 	reasoningEffort: "low" | "medium" | "high" | "max";
 	responseCacheEnabled: boolean;
+	usdToCny: number;
 }
 
 // === HELPER: Generate completion ID ===

@@ -11,6 +11,7 @@ import type {
 } from "../../src/reasonix/engine.js";
 
 const usage: EngineUsage = {
+	costUsd: 0,
 	promptTokens: 50,
 	completionTokens: 5,
 	totalTokens: 55,

@@ -1,5 +1,6 @@
 import { type Context, Hono } from "hono";
 import { z } from "zod";
+import { getConfig } from "../config.js";
 import { getFactory } from "../lib/client.js";
 import {
 	deriveConversationKey,
@@ -22,7 +23,11 @@ import {
 } from "../lib/streaming.js";
 import { generateCompletionId, unixTimestamp } from "../lib/types.js";
 import { zValidator } from "../middleware/validator.js";
-import { getEngine } from "../reasonix/adapter.js";
+import {
+	getCachedBalance,
+	getEngine,
+	refreshBalance,
+} from "../reasonix/adapter.js";
 import type {
 	EngineChatRequest,
 	EngineStreamChunk,
@@ -328,12 +333,18 @@ function logDeepSeekCall(args: {
 			`cached_hit=${usage.cachedHitTokens} cached_miss=${usage.cachedMissTokens} ` +
 			`hit_ratio=${usage.promptTokens > 0 ? (usage.cachedHitTokens / usage.promptTokens).toFixed(3) : "0"}`
 		: "usage=n/a";
+	const rate = getConfig().usdToCny;
+	const cost = usage ? `cost≈¥${(usage.costUsd * rate).toFixed(4)}` : "cost=-";
+	const bal = getCachedBalance();
+	const balance = bal ? `balance=¥${bal.total.toFixed(2)}` : "balance=?";
 	console.log(
 		`[${new Date().toISOString()}] deepseek ` +
 			`model=${model} effort=${fmt(req.reasoningEffort)} stream=${stream} ` +
 			`tools=${req.tools?.length ?? 0} max_tokens=${fmt(req.maxTokens)} ` +
-			`| ${u} session=${convKey}`,
+			`| ${u} ${cost} ${balance} session=${convKey}`,
 	);
+	// Refresh the cached balance for the next line (throttled, non-blocking).
+	void refreshBalance();
 }
 
 function emitEnd(

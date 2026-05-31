@@ -69,6 +69,8 @@ export interface EngineUsage {
 	totalTokens: number;
 	cachedHitTokens: number;
 	cachedMissTokens: number;
+	/** Per-call cost in USD, computed by reasonix's pricing (0 if unknown). */
+	costUsd: number;
 }
 
 export const EMPTY_USAGE: EngineUsage = {
@@ -77,6 +79,7 @@ export const EMPTY_USAGE: EngineUsage = {
 	totalTokens: 0,
 	cachedHitTokens: 0,
 	cachedMissTokens: 0,
+	costUsd: 0,
 };
 
 export type FinishReason =
@@ -109,6 +112,14 @@ export interface EngineStreamChunk {
 	finishReason?: FinishReason;
 }
 
+/** Account balance, normalized from the provider's balance endpoint. */
+export interface EngineBalance {
+	/** Currency code, e.g. "CNY". */
+	currency: string;
+	/** Total available balance in that currency. */
+	total: number;
+}
+
 /**
  * The stable engine the app codes against.
  * `chat`/`stream` are the entire coupling surface to the model provider.
@@ -118,4 +129,6 @@ export interface ReasonixEngine {
 	readonly reasonixVersion: string;
 	chat(req: EngineChatRequest): Promise<EngineResult>;
 	stream(req: EngineChatRequest): AsyncIterable<EngineStreamChunk>;
+	/** Account balance (native currency). Returns null if unavailable. */
+	getBalance(): Promise<EngineBalance | null>;
 }
