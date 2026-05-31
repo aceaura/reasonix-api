@@ -196,7 +196,6 @@ chatRouter.post(
 				req: engineReq,
 				usage: result.usage,
 				stream: false,
-				localCache: Boolean(cached),
 				convKey,
 			});
 			const response = buildChatCompletion(result, {
@@ -272,7 +271,6 @@ function streamResponse(
 					req: engineReq,
 					usage: captured,
 					stream: true,
-					localCache: false,
 					convKey: opts.convKey,
 				});
 			} catch (err) {
@@ -316,11 +314,9 @@ function logDeepSeekCall(args: {
 	req: EngineChatRequest;
 	usage: EngineUsage | undefined;
 	stream: boolean;
-	localCache: boolean;
 	convKey: string;
 }): void {
-	const { model, req, usage, stream, localCache, convKey } = args;
-	const extra = req.extraBody ?? {};
+	const { model, req, usage, stream, convKey } = args;
 	const fmt = (v: unknown): string =>
 		v === undefined
 			? "-"
@@ -335,9 +331,8 @@ function logDeepSeekCall(args: {
 	console.log(
 		`[${new Date().toISOString()}] deepseek ` +
 			`model=${model} effort=${fmt(req.reasoningEffort)} stream=${stream} ` +
-			`tools=${req.tools?.length ?? 0} max_tokens=${fmt(req.maxTokens)} temp=${fmt(req.temperature)} ` +
-			`seed=${fmt(extra.seed)} stop=${fmt(extra.stop)} top_p=${fmt(extra.top_p)} ` +
-			`local_cache=${localCache ? "HIT" : "miss"} | ${u} session=${convKey}`,
+			`tools=${req.tools?.length ?? 0} max_tokens=${fmt(req.maxTokens)} ` +
+			`| ${u} session=${convKey}`,
 	);
 }
 
