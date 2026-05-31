@@ -1,48 +1,51 @@
 import { Hono } from "hono";
 import { getConfig } from "../config.js";
+import { getFactory } from "../lib/client.js";
 import type { ModelInfo } from "../lib/types.js";
 
 const modelsRouter = new Hono();
 
 /** List available models */
 modelsRouter.get("/", (c) => {
+	const factory = getFactory();
 	const config = getConfig();
-	const models: ModelInfo[] = Object.entries(config.modelMapping).map(
-		([openaiModel, deepseekModel]) => ({
-			id: openaiModel,
-			object: "model",
-			created: Math.floor(Date.now() / 1000),
-			owned_by: deepseekModel,
-			permission: [],
-		}),
-	);
 
-	// Always include the default model
-	const defaultModel: ModelInfo = {
-		id: config.defaultModel,
+	// All model IDs known to the factory (exclude "default" fallback key)
+	const allModelIds = factory
+		.getAvailableModels()
+		.filter((id) => id !== "default");
+
+	const models: ModelInfo[] = allModelIds.map((id) => ({
+		id,
 		object: "model",
 		created: Math.floor(Date.now() / 1000),
-		owned_by: "reasonix",
+		owned_by: factory.mapModel(id),
 		permission: [],
-	};
+	}));
 
-	const allModels = [...models];
-	if (!allModels.some((m) => m.id === defaultModel.id)) {
-		allModels.push(defaultModel);
+	// Also include the default model if not already covered
+	if (!allModelIds.includes(config.defaultModel)) {
+		models.push({
+			id: config.defaultModel,
+			object: "model",
+			created: Math.floor(Date.now() / 1000),
+			owned_by: "reasonix",
+			permission: [],
+		});
 	}
 
 	return c.json({
 		object: "list",
-		data: allModels,
+		data: models,
 	});
 });
 
 /** Retrieve a specific model */
 modelsRouter.get("/:model", (c) => {
-	const config = getConfig();
+	const factory = getFactory();
 	const modelId = c.req.param("model");
 
-	const deepseekModel = config.modelMapping[modelId] ?? config.defaultModel;
+	const deepseekModel = factory.mapModel(modelId);
 
 	const model: ModelInfo = {
 		id: modelId,
